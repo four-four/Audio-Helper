@@ -1,1 +1,5 @@
 # Audio-Helper
+
+## Requirements
+
+- ffmpeg
