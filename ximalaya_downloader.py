@@ -65,8 +65,12 @@ class Ximalaya_Downloader(object):
             print(media_url)
             print(media_name)
             yield media_url,media_name
+    
+    def download_media(self, media_url, out_path, out_name):
+        get_url = self.first_curl(media_url, out_name)
+        self.second_wget(get_url, out_path + '/' + out_name)
 
-    def download(self, album_id, total_pages, out_path):
+    def download_album(self, album_id, total_pages, out_path):
         url = self.ALBUM_URL % album_id
         for page in range(1, total_pages + 1):
             page_url = url
@@ -85,17 +89,31 @@ class Ximalaya_Downloader(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("album", help="album id")
+    parser.add_argument("-u", "--url", help="media url")
+    parser.add_argument("-n", "--name", help="media name")
+    parser.add_argument("-a", "--album", help="album id")
     parser.add_argument("-p", "--page", help="total pages, default=1")
     parser.add_argument("outpath", help="dest path")
     args = parser.parse_args()
 
-    album_id = args.album
-    out_path = args.outpath
-    total_pages = 1
-    if args.page:
-        total_pages = int(args.page)
     dl = Ximalaya_Downloader()
-    dl.download(album_id, total_pages, out_path)
     cv = Converter()
+    out_path = args.outpath
+    # Download a specific media
+    if args.url:
+        mediam_url = args.url
+        out_name = "temp"
+        if args.name:
+            out_name = args.name
+        dl.download_media(mediam_url, out_path, out_name)
+    else:
+    # Download an album
+        album_id = 0
+        if args.album:
+            album_id = args.album
+        total_pages = 1
+        if args.page:
+            total_pages = int(args.page)
+        dl.download_album(album_id, total_pages, out_path)
+
     cv.m4aTomp3(out_path + '/')
