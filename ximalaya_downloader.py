@@ -52,6 +52,8 @@ class Ximalaya_Downloader(object):
         return wget_url
 
     def second_wget(self, url, name):
+        if 'm4a' not in name:
+            name = name + '.m4a'
         wget.download(url, out=name)
 
     def get_total_page(self, page_url):
@@ -82,14 +84,14 @@ class Ximalaya_Downloader(object):
                 if not name:
                     continue
 
-                target_name = re.sub(r' +', '_', name) + '.m4a'
+                target_name = re.sub(r' +|\(|\)|\.', '_', name) + '.m4a'
                 get_url = self.first_curl(id, name)
                 self.second_wget(get_url, out_path + '/' + target_name)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-u", "--url", help="media url")
+    parser.add_argument("-i", "--id", help="media id")
     parser.add_argument("-n", "--name", help="media name")
     parser.add_argument("-a", "--album", help="album id")
     parser.add_argument("-p", "--page", help="total pages, default=1")
@@ -100,12 +102,12 @@ if __name__ == '__main__':
     cv = Converter()
     out_path = args.outpath
     # Download a specific media
-    if args.url:
-        mediam_url = args.url
+    if args.id:
+        mediam_id = args.id
         out_name = "temp"
         if args.name:
             out_name = args.name
-        dl.download_media(mediam_url, out_path, out_name)
+        dl.download_media(mediam_id, out_path, out_name)
     else:
     # Download an album
         album_id = 0

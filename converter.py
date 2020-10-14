@@ -9,10 +9,14 @@ class Converter(object):
     def m4aTomp3(self, filepath):
         m4a_file = os.listdir(filepath)
         for i, m4a in enumerate(m4a_file):
-            tail = str(m4a).split(".")[1]
+            tail = str(m4a).split(".")[-1]
             if 'm4a' not in tail:
                 continue
-            file_name = str(m4a).split(".")[0]
+            file_name_list = str(m4a).split(".")[0:-1]
+            if len(file_name_list) > 1:
+                file_name = '.'.join(file_name_list)
+            else:
+                file_name = file_name_list[0]
             cli = "ffmpeg -i " + filepath + m4a + " -acodec libmp3lame -aq 2 " + filepath + file_name + ".mp3"
             os.system(cli)
             cli = "rm -f " + filepath + m4a
