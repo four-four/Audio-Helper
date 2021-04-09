@@ -7,6 +7,7 @@ import parsel
 import ssl
 import execjs
 import argparse
+import json
 from converter import Converter
 from login import login
 
@@ -20,14 +21,20 @@ class Ximalaya_Downloader(object):
     TIME_URL = "https://www.ximalaya.com/revision/time"
     AUDIO_URL = 'https://www.ximalaya.com/revision/play/v1/audio?id=%s&ptype=1'
     ALBUM_URL = 'https://www.ximalaya.com/ertong/%s/'
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
+    HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
            'Host': 'www.ximalaya.com',
     }
     def __init__(self):
         pass
 
+    @property
+    def headers(self):
+        headers = self.HEADERS
+        headers['xm-sign'] = self.exec_js()
+        return headers
+
     def getxmtime(self):
-        response = session.get(self.TIME_URL, headers=self.headers)
+        response = session.get(self.TIME_URL, headers=self.HEADERS)
         html = response.text
         return html
 
@@ -41,14 +48,16 @@ class Ximalaya_Downloader(object):
         return res
 
     def first_curl(self, id, name):
-        sign = self.exec_js()
-        self.headers['xm-sign'] = sign
         url = self.AUDIO_URL % str(id)
         wget_url = None
-        print(url)
+        print('first_curl get url: %s' %url)
 
-        res = session.get(url, headers=self.headers).json()
+        response = session.get(url, headers=self.headers)
+        print(response)
+        res = response.json()
+        print(res)
         try:
+            print(res)
             wget_url = res['data']['src']
         except Exception as e:
             print('curl %s failed!: %s' %(name, str(e)))
@@ -57,23 +66,10 @@ class Ximalaya_Downloader(object):
     def second_wget(self, url, name):
         if 'm4a' not in name:
             name = name + '.m4a'
-        print(url)
-        print(name)
+        print('second_wget url is %s' %url)
+        print('second_wget name is %s' %name)
         wget.download(url, out=name)
 
-    def get_total_page_by_html(self, page_url):
-        response = session.get(page_url, headers = self.headers)
-        print(response.text)
-        sel = parsel.Selector(response.text)
-        sound_list = sel.css('.sound-list ul li a')
-        for sound in sound_list[:30]:
-            media_url = sound.css('a::attr(href)').extract_first()
-            media_url = media_url.split('/')[-1]
-            media_name = sound.css('a::attr(title)').extract_first()
-            print(media_url)
-            print(media_name)
-            yield media_url,media_name
-    
     def download_media(self, media_url, out_path, out_name):
         get_url = self.first_curl(media_url, out_name)
         self.second_wget(get_url, out_path + '/' + out_name)
@@ -89,17 +85,23 @@ class Ximalaya_Downloader(object):
             self.download_page(page_url, out_path)
     
     def download_page(self, url, out_path, itemTrack='tracks', itemName='title'):
-        response = session.get(url, headers = self.headers).json()
+        print('download_page url: %s' %url)
+        res = session.get(url, headers = self.headers)
+        result = json.loads(res.content.decode(encoding='utf-8'))
+        print(result)
+        response = res.json()
+        print(response)
+
         media_list = []
         try:
             media_list = response['data'][itemTrack]
         except Exception as e:
-            print("Failed to get track list.")
+            print("Failed to get track list with error: ", str(e))
             return
         for media in media_list:
             track_id = media['trackId']
             name = media[itemName]
-            target_name = re.sub(r' +|\(|\)|\.', '_', name) + '.m4a'
+            target_name = re.sub(r' +|\(|\)|\.|\'|\"|\||[\u3002]|[\u3001]|[\u3010]|[\u3011]|[\u00b7]|[\uff1a]|[\u300a]|[\u300b]', '_', name) + '.m4a'
             get_url = self.first_curl(track_id, name)
             self.second_wget(get_url, out_path + '/' + target_name)
 
